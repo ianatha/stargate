@@ -1,0 +1,14 @@
+<html>
+<body>
+  What should I return?<br/>
+  <input type="text" id="password" /><br/>
+  <input type="submit" id="submit" />
+
+  <script>
+    var submit = document.getElementById("submit");
+    submit.addEventListener('click', function submitButtonClick() {
+      window.location = "stargate-result://" +  document.getElementById("password").value;
+    }, false)
+  </script>
+</body>
+</html>
