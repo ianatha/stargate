@@ -2,21 +2,22 @@ import Foundation
 import WebKit
 
 
-let window = NSWindow(contentRect: NSMakeRect(0, 0, 800, 600), styleMask: NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask, backing: .Buffered, defer: false)
+let window = NSWindow(contentRect: NSMakeRect(0, 0, 800, 600), styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
 window.center()
 window.title = "stargate"
 window.makeKeyAndOrderFront(window)
 class WindowDelegate: NSObject, NSWindowDelegate {
-    func windowWillClose(notification: NSNotification?) {
-        NSApplication.sharedApplication().terminate(0)
+    private func windowWillClose(notification: NSNotification?) {
+        NSApplication.shared.terminate(0)
     }
 }
 let windowDelegate = WindowDelegate()
 window.delegate = windowDelegate
 
-let application = NSApplication.sharedApplication()
-application.setActivationPolicy(NSApplicationActivationPolicy.Regular)
-class ApplicationDelegate: NSObject, NSApplicationDelegate {
+let application = NSApplication.shared
+application.setActivationPolicy(NSApplication.ActivationPolicy.regular)
+
+class ApplicationDelegate: NSObject, NSApplicationDelegate, WebFrameLoadDelegate, WebPolicyDelegate {
     var window: NSWindow
     var initialUrl: NSURL
     var exitCode: Int32
@@ -26,72 +27,58 @@ class ApplicationDelegate: NSObject, NSApplicationDelegate {
         self.initialUrl = initialUrl
         self.exitCode = 127 // defaults to 127, we will set it to 0 upon reaching a stargate-result url
     }
-    
-    override func webView(webView: WebView!,
-        decidePolicyForNavigationAction actionInformation: [NSObject : AnyObject]!,
-        request: NSURLRequest!,
-        frame: WebFrame!,
-        decisionListener listener: WebPolicyDecisionListener!) {
-            
-            let url = request.URL.absoluteString!
+
+    func webView(_ webView: WebView!, decidePolicyForNavigationAction actionInformation: [AnyHashable : Any]!, request: URLRequest!, frame: WebFrame!, decisionListener listener: WebPolicyDecisionListener!) {
+
+        let url = request.url!.absoluteString
             if (url.hasPrefix("stargate-result://")) {
                 self.exitCode = 0
-                println(url)
-                NSApplication.sharedApplication().terminate(nil)
+                print(url)
+                NSApplication.shared.terminate(nil)
             } else {
                 listener.use()
             }
     }
     
-    override func webView(sender: WebView!, didCommitLoadForFrame frame: WebFrame!)
+    func webView(_ webview: WebView!, didCommitLoadFor frame: WebFrame!)
+    {
+        // pass
+    }
+
+    func webView(_ webview: WebView!, didStartProvisionalLoadFor frame: WebFrame!)
     {
         // pass
     }
     
-    override func webView(sender: WebView!, didStartProvisionalLoadForFrame frame: WebFrame!)
-    {
-        // pass
+    func webView(_ webView: WebView!, runJavaScriptAlertPanelWithMessage message: String!, initiatedByFrame frame: WebFrame!) {
+        NSLog("alert: \(String(describing: message))");
     }
     
-    override func webView(sender: WebView!, runJavaScriptAlertPanelWithMessage message: String!, initiatedByFrame frame: WebFrame!) {
-        NSLog("alert: \(message)");
-    }
-    
-    override func webView(sender: WebView!, didFinishLoadForFrame frame: WebFrame!)
-    {
-        // pass
-    }
-    
-    override func webView(sender: WebView!, didClearWindowObject window: WebScriptObject!, forFrame:WebFrame!) {
-        // pass
-    }
-    
-    
-    func applicationDidFinishLaunching(notification: NSNotification?) {
-        let webView = WebView(frame: self.window.contentView.frame)
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        let webView = WebView(frame: self.window.contentView!.frame)
         webView.frameLoadDelegate = self
         webView.policyDelegate = self
-        self.window.contentView.addSubview(webView)
-        webView.mainFrame.loadRequest(NSURLRequest(URL: initialUrl))
+        self.window.contentView!.addSubview(webView)
+        webView.mainFrame.load(URLRequest(url: initialUrl as URL))
     }
     
-    func applicationWillTerminate(notification: NSNotification) {
+    private func applicationWillTerminate(notification: NSNotification) {
         exit(self.exitCode)
     }
 }
 
-if (Process.arguments.count <= 1) {
-    println("You must specify a URL on the command-line")
+if (CommandLine.arguments.count <= 1) {
+    print("You must specify a URL on the command-line")
     exit(63)
 }
 
-if let url = NSURL(string: Process.arguments[1]) {
+if let url = NSURL(string: CommandLine.arguments[1]) {
     let applicationDelegate = ApplicationDelegate(window: window, application: application, initialUrl: url)
     application.delegate = applicationDelegate
-    application.activateIgnoringOtherApps(true)
+    application.activate(ignoringOtherApps: true)
     application.run()
 } else {
-    println("You must specify a valid URL on the command-line")
+    print("You must specify a valid URL on the command-line")
     exit(63)
 }
 
